@@ -11,7 +11,7 @@
  * Full E2E WebSocket transport testing is covered by Playwright tests.
  */
 
-import { describe, test, expect, beforeAll, afterAll } from 'bun:test';
+import { describe, test, expect, beforeAll, afterAll } from 'vitest';
 import {
   startTestServer,
   stopTestServer,

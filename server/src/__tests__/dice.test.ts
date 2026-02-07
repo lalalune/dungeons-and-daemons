@@ -3,7 +3,7 @@
  * Comprehensive tests for D&D 5e dice rolling mechanics
  */
 
-import { describe, test, expect, beforeEach } from 'bun:test';
+import { describe, test, expect, beforeEach } from 'vitest';
 import {
   rollDie,
   rollDice,

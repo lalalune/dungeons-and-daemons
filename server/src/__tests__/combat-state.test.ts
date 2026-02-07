@@ -3,7 +3,7 @@
  * Tests for combat encounter management and state transitions
  */
 
-import { describe, test, expect } from 'bun:test';
+import { describe, test, expect } from 'vitest';
 import {
   createCombatantFromCharacter,
   createCombatantFromMonster,

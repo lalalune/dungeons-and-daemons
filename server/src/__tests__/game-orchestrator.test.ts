@@ -6,7 +6,7 @@
  * We stub those at the module boundary but test all game logic through real code paths.
  */
 
-import { describe, test, expect, beforeEach, mock } from 'bun:test';
+import { describe, test, expect, beforeEach, vi } from 'vitest';
 import {
   createGameOrchestrator,
   processPlayerAction,
@@ -20,7 +20,7 @@ import { createEncounter, addPartyToEncounter, startCombat } from '../combat/com
 import type { CharacterSheet } from '../types';
 
 // Stub DB-dependent functions. These are the I/O boundaries — the game logic is real.
-mock.module('../persistence', () => ({
+vi.mock('../persistence', () => ({
   characterRepository: {
     getByCampaign: async () => [],
     updateHP: async () => {},
@@ -40,7 +40,7 @@ mock.module('../persistence', () => ({
   },
 }));
 
-mock.module('../campaign/memory-retrieval', () => ({
+vi.mock('../campaign/memory-retrieval', () => ({
   storeCharacterMemory: async () => {},
 }));
 

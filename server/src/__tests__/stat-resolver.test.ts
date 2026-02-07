@@ -4,7 +4,7 @@
  * Uses the actual starter adventure characters as test fixtures.
  */
 
-import { describe, test, expect } from 'bun:test';
+import { describe, test, expect } from 'vitest';
 import { resolveCombatStats, findSpell, hasSpellSlot } from '../combat/stat-resolver';
 import type { CharacterSheet } from '../types';
 

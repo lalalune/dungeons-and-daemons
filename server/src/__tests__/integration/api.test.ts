@@ -5,7 +5,7 @@
  * No mocks — real PostgreSQL, real seeded data.
  */
 
-import { describe, test, expect, beforeAll, afterAll } from 'bun:test';
+import { describe, test, expect, beforeAll, afterAll } from 'vitest';
 import { startTestServer, stopTestServer, type TestContext } from './test-server';
 
 let ctx: TestContext;

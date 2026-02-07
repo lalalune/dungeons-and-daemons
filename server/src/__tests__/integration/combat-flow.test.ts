@@ -12,7 +12,7 @@
  * All tests use REAL database, REAL game state — no mocks.
  */
 
-import { describe, test, expect, beforeAll, afterAll, beforeEach } from 'bun:test';
+import { describe, test, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { startTestServer, stopTestServer, type TestContext } from './test-server';
 import {
   processPlayerAction,

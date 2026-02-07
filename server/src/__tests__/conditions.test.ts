@@ -3,7 +3,7 @@
  * Tests for D&D 5e condition mechanics
  */
 
-import { describe, test, expect } from 'bun:test';
+import { describe, test, expect } from 'vitest';
 import {
   CONDITIONS,
   normalizeCondition,

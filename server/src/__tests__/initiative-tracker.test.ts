@@ -3,7 +3,7 @@
  * Covers initiative rolling, turn advancement, delay, add/remove.
  */
 
-import { describe, test, expect } from 'bun:test';
+import { describe, test, expect } from 'vitest';
 import {
   rollInitiative,
   rollGroupInitiative,

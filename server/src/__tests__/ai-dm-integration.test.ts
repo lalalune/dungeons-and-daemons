@@ -8,7 +8,7 @@
  */
 
 import 'dotenv/config';
-import { describe, test, expect, beforeAll } from 'bun:test';
+import { describe, test, expect, beforeAll } from 'vitest';
 
 // Check if we have an API key before even importing heavy deps
 const HAS_API_KEY = !!process.env.OPENAI_API_KEY?.trim();
@@ -194,14 +194,14 @@ Narrate this attack cinematically in 2-3 sentences. Describe the weapon strike a
       const { processPlayerAction, createGameOrchestrator, transitionPhase } = await import('../campaign/game-orchestrator');
 
       // Mock the persistence layer
-      const { mock } = await import('bun:test');
-      mock.module('../persistence', () => ({
+      const { vi } = await import('vitest');
+      vi.mock('../persistence', () => ({
         characterRepository: { getByCampaign: async () => [], updateHP: async () => {}, updateSheet: async () => {}, getById: async () => null, addMemory: async () => ({ id: 'm' }) },
         locationRepository: { getById: async () => ({ name: 'Test Village', description: 'A quiet village.' }), recordVisit: async () => {}, recordInteraction: async () => {} },
         campaignRepository: {},
         worldRepository: { createEvent: async () => ({ id: 'e' }), logCombatAction: async () => {} },
       }));
-      mock.module('../campaign/memory-retrieval', () => ({ storeCharacterMemory: async () => {} }));
+      vi.mock('../campaign/memory-retrieval', () => ({ storeCharacterMemory: async () => {} }));
 
       const state = createGameOrchestrator();
       state.sessionState = {

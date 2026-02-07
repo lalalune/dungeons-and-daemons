@@ -3,7 +3,7 @@
  * Comprehensive tests for D&D 5e damage and healing mechanics
  */
 
-import { describe, test, expect } from 'bun:test';
+import { describe, test, expect } from 'vitest';
 import {
   applyDamage,
   applyMultipleDamage,

@@ -3,7 +3,7 @@
  * Verifies that buff/utility spells apply real mechanical effects.
  */
 
-import { describe, test, expect } from 'bun:test';
+import { describe, test, expect } from 'vitest';
 import { applySpellEffect } from '../combat/spell-effects';
 import type { Combatant, CombatEncounter } from '../combat/combat-state';
 import { getCondName } from '../combat/condition-utils';

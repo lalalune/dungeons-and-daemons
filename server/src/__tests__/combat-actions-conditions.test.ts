@@ -4,7 +4,7 @@
  * and consume conditions, and that executeAttack checks them.
  */
 
-import { describe, test, expect } from 'bun:test';
+import { describe, test, expect } from 'vitest';
 import {
   executeAttack,
   executeDodge,
