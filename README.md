@@ -1,4 +1,4 @@
-# D&D VTT - AI-Powered Virtual Tabletop
+# Dungeons & Daemons- AI-Powered Virtual Tabletop
 
 An AI-powered D&D 5e Virtual Tabletop powered by ElizaOS agents. Features an AI Dungeon Master that runs dynamic, narrative-driven adventures with AI party members that can act autonomously or be guided by players.
 
