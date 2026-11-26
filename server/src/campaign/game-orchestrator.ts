@@ -1,4 +1,7 @@
 import type { AgentRuntime } from '@elizaos/core';
+import { claudeCodeNarratorEnabled, narrateWithClaudeCode } from '../llm/claude-code-narrator';
+import { nameIdeas } from '../data/dungeoneer';
+import { sceneInstruction, splitSceneTag, sceneFromText } from '../rooms/scenes';
 import type { Server as SocketIOServer } from 'socket.io';
 import type { SessionState } from './session-manager';
 import type { CharacterSheet, Campaign, DamageType } from '../types';
@@ -68,6 +71,10 @@ export interface GameState {
   _campaign?: Campaign;
   _characters?: CharacterSheet[];
   _openingNarration?: string;
+  /** The adventure this table is playing; the brief is game-master-only. */
+  _adventure?: { title: string; levels: string; dmBrief: string };
+  /** Which map or picture the table is looking at. */
+  _scene?: string;
 }
 
 export function createGameOrchestrator(): GameState {
@@ -761,6 +768,18 @@ async function generateDMResponse(
 ): Promise<string> {
   const context = await buildGameContext(state, characterName);
 
+  if (claudeCodeNarratorEnabled()) {
+    try {
+      const reply = await narrateWithClaudeCode(buildDMPrompt(context, characterName, action));
+      const { text, scene } = splitSceneTag(reply);
+      if (scene) state._scene = scene;
+      return text;
+    } catch (error) {
+      console.error(`[DM] ${(error as Error).message ?? error}`);
+      return buildTemplateResponse(context, characterName, action);
+    }
+  }
+
   if (state.dmAgent && typeof (state.dmAgent as unknown as Record<string, unknown>).generateText === 'function') {
     try {
       const prompt = buildDMPrompt(context, characterName, action);
@@ -768,8 +787,9 @@ async function generateDMResponse(
         generateText: (input: string, opts?: { maxTokens?: number; temperature?: number }) => Promise<{ text: string }>;
       }).generateText(prompt, { maxTokens: 400, temperature: 0.8 });
 
-      const text = result?.text?.trim() ?? '';
+      const { text, scene } = splitSceneTag(result?.text ?? '');
       if (text.length > 0) {
+        if (scene) state._scene = scene;
         return text;
       }
       console.warn('[DM] generateText returned empty text, using template');
@@ -781,6 +801,9 @@ async function generateDMResponse(
     console.warn('[DM] dmAgent has no generateText — all responses will use templates');
   }
 
+  // No language model: guess the scene from what the player said they are doing.
+  const guessed = sceneFromText(action.description);
+  if (guessed) state._scene = guessed;
   return buildTemplateResponse(context, characterName, action);
 }
 
@@ -791,6 +814,8 @@ interface GameContext {
   partyStatus: string;
   recentEvents: string[];
   campaignName: string;
+  adventure?: { title: string; levels: string; dmBrief: string };
+  scene?: string;
 }
 
 async function buildGameContext(state: GameState, _characterName: string): Promise<GameContext> {
@@ -815,7 +840,11 @@ async function buildGameContext(state: GameState, _characterName: string): Promi
   const chars = state._characters ?? [];
   const partyStatus = chars.map(c => {
     const hp = c.hp ?? c.hitPoints;
-    return `${c.name} (L${c.level} ${c.race} ${c.class}, ${hp?.current ?? '?'}/${hp?.max ?? '?'} HP)`;
+    // Magic items the character has found, so the story can acknowledge them.
+    const bag = !Array.isArray(c.equipment) ? c.equipment?.inventory ?? [] : [];
+    const finds = bag.filter(i => i.rarity).map(i => `${i.name}${i.equipped ? ' (worn)' : ''}`);
+    const gear = finds.length > 0 ? `; carries ${finds.join(', ')}` : '';
+    return `${c.name} (L${c.level} ${c.race} ${c.class}, ${hp?.current ?? '?'}/${hp?.max ?? '?'} HP${gear})`;
   }).join(', ');
 
   return {
@@ -825,11 +854,19 @@ async function buildGameContext(state: GameState, _characterName: string): Promi
     partyStatus,
     recentEvents: state.sessionState?.recentEvents?.slice(-5) ?? [],
     campaignName: state._campaign?.name ?? 'the campaign',
+    adventure: state._adventure,
+    scene: state._scene,
   };
 }
 
 function buildDMPrompt(ctx: GameContext, characterName: string, action: { type: string; description: string }): string {
   let prompt = `You are the Dungeon Master. Respond to the player's action in character.\n\n`;
+  if (ctx.adventure) {
+    prompt += `## Adventure: ${ctx.adventure.title}\n`;
+    prompt += `These are your private notes. Keep to them, reveal them only through play, and never read them out.\n`;
+    prompt += `${ctx.adventure.dmBrief}\n`;
+    prompt += `The adventure was written for levels ${ctx.adventure.levels}; scale dangers to the party below.\n\n`;
+  }
   prompt += `## Current Scene\n`;
   prompt += `Location: ${ctx.locationName}\n`;
   if (ctx.locationDesc) prompt += `${ctx.locationDesc}\n`;
@@ -841,9 +878,11 @@ function buildDMPrompt(ctx: GameContext, characterName: string, action: { type: 
   prompt += `\n## Player Action\n`;
   prompt += `${characterName}: "${action.description}"\n`;
   prompt += `Action type: ${action.type}\n`;
+  prompt += `\nIf you need to name a new person, use one of these instead of inventing one: ${nameIdeas().join(', ')}.\n`;
   prompt += `\nRespond as the DM. Be vivid, concise (2-4 sentences), and advance the story. `;
   prompt += `If the action requires a skill check, tell the player what to roll. `;
-  prompt += `Stay consistent with the location and situation.`;
+  prompt += `Stay consistent with the location and situation.\n\n`;
+  prompt += sceneInstruction(ctx.scene);
   return prompt;
 }
 

@@ -9,6 +9,7 @@ export function ActionBar() {
 	const [pendingAction, setPendingAction] = useState<string | null>(null);
 	const {
 		sendMessage,
+		rollDice,
 		sendAction,
 		inCombat,
 		connected,
@@ -19,6 +20,14 @@ export function ActionBar() {
 	const handleSubmit = (e: FormEvent) => {
 		e.preventDefault();
 		if (!message.trim() || !connected) return;
+
+		// "/roll 2d6+3" (or "/r d20") throws dice instead of speaking.
+		const dice = message.trim().match(/^\/(?:roll|r)\s+(.+)$/i);
+		if (dice) {
+			rollDice(dice[1]);
+			setMessage("");
+			return;
+		}
 
 		sendMessage(message.trim());
 		setMessage("");
@@ -137,7 +146,7 @@ export function ActionBar() {
 	const quickActions = inCombat ? combatActions : explorationActions;
 
 	return (
-		<div className="bg-slate-800/80 rounded-lg border border-slate-700 p-3">
+		<div className="bg-slate-900/70 backdrop-blur-sm rounded-lg border border-slate-700 p-3">
 			{/* Target Picker Overlay */}
 			{showTargetPicker && (
 				<div className="mb-3 p-3 bg-slate-900 rounded border border-amber-500/50">
@@ -240,6 +249,25 @@ export function ActionBar() {
 				</div>
 			)}
 
+			{/* Dice tray: loose dice everyone at the table sees */}
+			{!isSpectator && (
+				<div className="mb-3 flex flex-wrap items-center gap-1.5">
+					<span className="text-xs text-slate-500 mr-1">Roll</span>
+					{["d4", "d6", "d8", "d10", "d12", "d20", "d100"].map((die) => (
+						<button
+							type="button"
+							key={die}
+							disabled={!connected}
+							onClick={() => rollDice(`1${die}`)}
+							title={`Roll a ${die}. For more, type /roll 2d6+3`}
+							className="px-2.5 py-1 rounded border border-slate-600 bg-slate-800/70 text-xs font-medium text-amber-200 hover:border-amber-500 disabled:opacity-40 transition-colors"
+						>
+							{die}
+						</button>
+					))}
+				</div>
+			)}
+
 			{/* Message Input */}
 			{!isSpectator && (
 				<form onSubmit={handleSubmit} className="flex gap-2">
@@ -248,7 +276,7 @@ export function ActionBar() {
 						value={message}
 						onChange={(e) => setMessage(e.target.value)}
 						placeholder={
-							inCombat ? "Describe your action..." : "What do you do?"
+							inCombat ? "Describe your action..." : "What do you do?  (/roll 2d6+3 throws dice)"
 						}
 						disabled={!connected}
 						className={clsx(

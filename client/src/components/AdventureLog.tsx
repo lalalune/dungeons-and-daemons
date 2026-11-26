@@ -23,7 +23,7 @@ export function AdventureLog() {
 	}, [logVersion]);
 
 	return (
-		<div className="bg-slate-800/80 rounded-lg border border-slate-700 h-full flex flex-col">
+		<div className="bg-slate-900/70 backdrop-blur-sm rounded-lg border border-slate-700 h-full flex flex-col">
 			<div className="px-4 py-3 border-b border-slate-700">
 				<h3 className="fantasy-heading text-lg text-gold-400">
 					📜 Adventure Log

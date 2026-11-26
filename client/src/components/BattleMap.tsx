@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { type Token, useGameStore } from "../store/gameStore";
+import { drawDarkness, drawScene, type SceneArt, sceneArt } from "./sceneRenderer";
 
 interface GridPosition {
 	gridX: number;
@@ -23,7 +24,35 @@ export function BattleMap() {
 		mapHeight,
 		gridSize,
 		mapImageUrl,
+		scene,
+		inCombat,
 	} = useGameStore();
+
+	// The scene the story is in: a map or a painting, chosen by the Dungeon Master.
+	const [art, setArt] = useState<SceneArt | null>(null);
+	const [tick, setTick] = useState(0);
+	useEffect(() => {
+		let alive = true;
+		sceneArt(scene).then((next) => alive && setArt(next));
+		return () => {
+			alive = false;
+		};
+	}, [scene]);
+
+	// Moving scenes (open sea) redraw continuously; still ones only when something changes.
+	useEffect(() => {
+		if (!art?.slide) return;
+		let frame = 0;
+		const loop = () => {
+			setTick((t) => t + 1);
+			frame = requestAnimationFrame(loop);
+		};
+		frame = requestAnimationFrame(loop);
+		return () => cancelAnimationFrame(frame);
+	}, [art]);
+
+	// Tokens and the grid belong on tactical maps, and on anything during a fight.
+	const tactical = inCombat || Boolean(art?.map);
 
 	// Cache the map background image in a ref (no re-fetching on every draw)
 	useEffect(() => {
@@ -44,14 +73,15 @@ export function BattleMap() {
 			const canvas = canvasRef.current;
 			if (!canvas) return { gridX: 0, gridY: 0 };
 			// Account for CSS scaling
-			const scaleX = canvas.width / canvas.getBoundingClientRect().width;
-			const scaleY = canvas.height / canvas.getBoundingClientRect().height;
+			const rect = canvas.getBoundingClientRect();
+			const scaleX = (mapWidth * gridSize) / rect.width;
+			const scaleY = (mapHeight * gridSize) / rect.height;
 			return {
 				gridX: Math.floor((pixelX * scaleX) / gridSize),
 				gridY: Math.floor((pixelY * scaleY) / gridSize),
 			};
 		},
-		[gridSize],
+		[gridSize, mapWidth, mapHeight],
 	);
 
 	// Draw a single token on the canvas
@@ -141,9 +171,11 @@ export function BattleMap() {
 		// Set canvas size accounting for retina/HiDPI
 		canvas.width = width * dpr;
 		canvas.height = height * dpr;
-		canvas.style.width = `${width}px`;
-		canvas.style.height = `${height}px`;
-		ctx.scale(dpr, dpr);
+		canvas.style.width = "100%";
+		canvas.style.height = "auto";
+		canvas.style.maxHeight = "100%";
+		canvas.style.objectFit = "contain";
+		ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
 		// Clear canvas
 		ctx.fillStyle = "#1a1a2e";
@@ -152,10 +184,14 @@ export function BattleMap() {
 		// Draw cached background image
 		if (mapImageRef.current) {
 			ctx.drawImage(mapImageRef.current, 0, 0, width, height);
+		} else if (art) {
+			drawScene(ctx, art, width, height, performance.now(), () => setTick((t) => t + 1));
 		}
 
+		if (!tactical) return;
+
 		// Draw grid
-		ctx.strokeStyle = "rgba(255, 255, 255, 0.1)";
+		ctx.strokeStyle = art ? "rgba(255, 255, 255, 0.07)" : "rgba(255, 255, 255, 0.1)";
 		ctx.lineWidth = 1;
 
 		for (let x = 0; x <= mapWidth; x++) {
@@ -172,11 +208,26 @@ export function BattleMap() {
 			ctx.stroke();
 		}
 
-		// Draw tokens
+		// In the dark, only what the party's light reaches is shown; enemies beyond it stay hidden.
+		const lights = tokens
+			.filter((t) => t.type === "pc")
+			.map((t) => ({ x: (t.x + 0.5) * gridSize, y: (t.y + 0.5) * gridSize }));
+		const sight = gridSize * 7;
+		const seen = (t: Token) =>
+			!art?.dark ||
+			t.type === "pc" ||
+			lights.some(
+				(l) => Math.hypot((t.x + 0.5) * gridSize - l.x, (t.y + 0.5) * gridSize - l.y) < sight,
+			);
+
 		for (const token of tokens) {
-			drawToken(ctx, token, token.id === selectedTokenId);
+			if (seen(token) && token.type !== "pc") drawToken(ctx, token, token.id === selectedTokenId);
 		}
-	}, [mapWidth, mapHeight, gridSize, tokens, selectedTokenId, drawToken]);
+		if (art) drawDarkness(ctx, art, width, height, lights, sight);
+		for (const token of tokens) {
+			if (token.type === "pc") drawToken(ctx, token, token.id === selectedTokenId);
+		}
+	}, [mapWidth, mapHeight, gridSize, tokens, selectedTokenId, drawToken, art, tactical, tick]);
 
 	// Mouse handlers
 	const handleMouseDown = useCallback(
@@ -200,6 +251,8 @@ export function BattleMap() {
 
 			if (clickedToken) {
 				selectToken(clickedToken.id);
+				// Only your own character can be dragged; the server refuses the rest.
+				if (clickedToken.id !== useGameStore.getState().character?.id) return;
 				setDraggedToken(clickedToken.id);
 				setDragOffset({
 					x: grid.gridX - clickedToken.x,
@@ -283,11 +336,17 @@ export function BattleMap() {
 	return (
 		<div
 			ref={containerRef}
-			className="w-full h-full overflow-auto bg-slate-900 flex items-center justify-center"
+			className="relative w-full h-full overflow-hidden bg-slate-950 flex items-center justify-center"
 		>
+			{art && (
+				<div className="absolute top-2 left-2 z-10 rounded bg-slate-950/70 px-2 py-1 text-xs text-amber-200 pointer-events-none">
+					{art.title}
+					{art.dark && <span className="text-slate-400"> · dark</span>}
+				</div>
+			)}
 			<canvas
 				ref={canvasRef}
-				className="cursor-crosshair"
+				className={tactical ? "cursor-crosshair" : "cursor-default"}
 				onMouseDown={handleMouseDown}
 				onMouseMove={handleMouseMove}
 				onMouseUp={handleMouseUp}

@@ -3,6 +3,8 @@
  */
 
 import type { ActiveCondition, CharacterSheet } from '../types';
+import { buildInventoryView } from './inventory-view';
+import { buildSheetView } from './sheet-view';
 
 export function getCondName(cond: ActiveCondition): string {
   const name = cond.condition ?? cond.name ?? '';
@@ -43,5 +45,7 @@ export function buildCharacterPayload(sheet: CharacterSheet) {
     speed: sheet.speed ?? 30,
     conditions: extractConditionNames(sheet.conditions ?? []),
     spellSlots: sheet.spellSlots,
+    inventory: buildInventoryView(sheet),
+    sheet: buildSheetView(sheet),
   };
 }
