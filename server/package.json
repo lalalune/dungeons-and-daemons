@@ -12,25 +12,28 @@
     "test": "bun test"
   },
   "dependencies": {
+    "@electric-sql/pglite": "^0.2.17",
     "@elizaos/core": "next",
-    "@elizaos/plugin-sql": "next",
     "@elizaos/plugin-openai": "next",
-    "express": "^4.18.2",
-    "socket.io": "^4.7.4",
+    "@elizaos/plugin-sql": "next",
     "cors": "^2.8.5",
-    "pg": "^8.11.3",
-    "drizzle-orm": "^0.29.3",
-    "zod": "^3.22.4",
+    "dotenv": "^16.4.1",
+    "drizzle-orm": "^0.36.4",
+    "express": "^4.18.2",
     "openai": "^4.28.0",
+    "pg": "^8.11.3",
+    "socket.io": "^4.7.4",
     "uuid": "^9.0.1",
-    "dotenv": "^16.4.1"
+    "zod": "^3.22.4"
   },
   "devDependencies": {
-    "@types/express": "^4.17.21",
     "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
     "@types/pg": "^8.10.9",
     "@types/uuid": "^9.0.7",
     "drizzle-kit": "^0.20.13",
+    "socket.io-client": "^4.8.4",
     "typescript": "^5.3.3"
-  }
+  },
+  "license": "AGPL-3.0-or-later"
 }

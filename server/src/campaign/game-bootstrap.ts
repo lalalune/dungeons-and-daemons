@@ -6,6 +6,7 @@ import {
   type Plugin,
 } from '@elizaos/core';
 import type { GameState } from './game-orchestrator';
+import type { CharacterSheet } from '../types';
 import { startSession } from './session-manager';
 import { campaignRepository, characterRepository } from '../persistence';
 import { openingNarration } from '../content';
@@ -54,38 +55,18 @@ function createPlayerWrapper(name: string) {
   };
 }
 
-export async function bootstrapGame(
-  gameState: GameState,
-  io: SocketIOServer,
-  campaignId?: string,
-): Promise<void> {
-  let campaign: Awaited<ReturnType<typeof campaignRepository.getById>>;
+let sharedDM: Promise<GameState['dmAgent']> | null = null;
 
-  if (campaignId) {
-    campaign = await campaignRepository.getById(campaignId);
-  } else {
-    const campaigns = await campaignRepository.list();
-    campaign = campaigns.find(c => c.status === 'active') ?? campaigns[0] ?? null;
-  }
+/**
+ * The DM agent is stateless between calls (every prompt carries its own scene
+ * context), so one runtime is shared by every room instead of one per table.
+ */
+export function getSharedDMAgent(): Promise<GameState['dmAgent']> {
+  if (!sharedDM) sharedDM = createDMAgent();
+  return sharedDM;
+}
 
-  if (!campaign || !campaign.id) {
-    console.log('⚠️  No campaign found in database. Run `bun run seed` first.');
-    return;
-  }
-
-  const cid = campaign.id;
-  console.log(`📜 Loading campaign: ${campaign.name} (${cid})`);
-
-  const characters = await characterRepository.getByCampaign(cid);
-  if (characters.length === 0) {
-    console.log('⚠️  No characters found for campaign. Run `bun run seed` first.');
-    return;
-  }
-
-  const { session, state: sessionState } = await startSession(cid);
-  console.log(`🎮 Session started: ${session.id}`);
-
-  // Create the DM agent with a real AgentRuntime + LLM plugin
+async function createDMAgent(): Promise<GameState['dmAgent']> {
   const llmPlugin = await loadLLMPlugin();
   let dmAgent: GameState['dmAgent'];
 
@@ -134,6 +115,55 @@ export async function bootstrapGame(
     console.log('   Set OPENAI_API_KEY in .env for AI-powered narration.');
     dmAgent = createPlayerWrapper('Dungeon Master') as unknown as GameState['dmAgent'];
   }
+
+  return dmAgent;
+}
+
+/** Add a newly created character to a running game. */
+export function addCharacterToGame(gameState: GameState, character: CharacterSheet): void {
+  if (!character.id) throw new Error('Character has no id');
+  const agent = createPlayerWrapper(character.name);
+  agent.setSetting('role', 'player');
+  agent.setSetting('campaignId', gameState._campaign?.id ?? null);
+  agent.setSetting('characterId', character.id);
+  agent.setSetting('characterSheet', character);
+  (gameState.playerAgents as unknown as Map<string, unknown>).set(character.id, agent);
+  gameState._characters = [...(gameState._characters ?? []), character];
+  gameState.lastUpdate = new Date();
+}
+
+export async function bootstrapGame(
+  gameState: GameState,
+  io: SocketIOServer,
+  campaignId?: string,
+): Promise<void> {
+  let campaign: Awaited<ReturnType<typeof campaignRepository.getById>>;
+
+  if (campaignId) {
+    campaign = await campaignRepository.getById(campaignId);
+  } else {
+    const campaigns = await campaignRepository.list();
+    campaign = campaigns.find(c => c.status === 'active') ?? campaigns[0] ?? null;
+  }
+
+  if (!campaign || !campaign.id) {
+    console.log('⚠️  No campaign found in database. Run `bun run seed` first.');
+    return;
+  }
+
+  const cid = campaign.id;
+  console.log(`📜 Loading campaign: ${campaign.name} (${cid})`);
+
+  const characters = await characterRepository.getByCampaign(cid);
+  if (characters.length === 0) {
+    console.log('⚠️  No characters found for campaign. Run `bun run seed` first.');
+    return;
+  }
+
+  const { session, state: sessionState } = await startSession(cid);
+  console.log(`🎮 Session started: ${session.id}`);
+
+  const dmAgent = await getSharedDMAgent();
 
   // Player agents (lightweight — no LLM needed, game logic is in the orchestrator)
   const playerAgents = new Map<string, ReturnType<typeof createPlayerWrapper>>();

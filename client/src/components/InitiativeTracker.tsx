@@ -9,7 +9,7 @@ export function InitiativeTracker() {
 	}
 
 	return (
-		<div className="bg-slate-800/80 rounded-lg border border-slate-700 overflow-hidden">
+		<div className="bg-slate-900/70 backdrop-blur-sm rounded-lg border border-slate-700 overflow-hidden">
 			<div className="bg-red-900/50 px-4 py-2 border-b border-red-800">
 				<h3 className="fantasy-heading text-lg text-red-200 flex items-center gap-2">
 					⚔️ Combat - Round {round}

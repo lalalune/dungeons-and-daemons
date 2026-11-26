@@ -31,4 +31,4 @@ export {
   type GameState,
 } from './game-orchestrator';
 
-export { bootstrapGame } from './game-bootstrap';
+export { bootstrapGame, getSharedDMAgent, addCharacterToGame } from './game-bootstrap';

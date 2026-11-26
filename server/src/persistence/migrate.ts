@@ -6,7 +6,7 @@
 import { Pool } from 'pg';
 import { getDatabaseConfig } from './database';
 
-const MIGRATIONS = [
+const DROP_STATEMENTS = [
   // Drop all tables (for development - remove in production)
   `DROP TABLE IF EXISTS combat_logs CASCADE;`,
   `DROP TABLE IF EXISTS embeddings CASCADE;`,
@@ -22,13 +22,15 @@ const MIGRATIONS = [
   `DROP TABLE IF EXISTS characters CASCADE;`,
   `DROP TABLE IF EXISTS sessions CASCADE;`,
   `DROP TABLE IF EXISTS campaigns CASCADE;`,
+];
+
+const CREATE_STATEMENTS = [
   
-  // Enable UUID extension
-  `CREATE EXTENSION IF NOT EXISTS "uuid-ossp";`,
+  // gen_random_uuid() is built into Postgres 13+, so no extension is needed
   
   // Campaigns
   `CREATE TABLE campaigns (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
     description TEXT,
     dm_agent_id UUID NOT NULL,
@@ -44,7 +46,7 @@ const MIGRATIONS = [
   
   // Sessions
   `CREATE TABLE sessions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     campaign_id UUID NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
     session_number INTEGER NOT NULL,
     started_at TIMESTAMP DEFAULT NOW() NOT NULL,
@@ -65,7 +67,7 @@ const MIGRATIONS = [
   
   // Characters
   `CREATE TABLE characters (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     campaign_id UUID NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
     player_type VARCHAR(20) NOT NULL,
     agent_id UUID,
@@ -87,7 +89,7 @@ const MIGRATIONS = [
   
   // Character Memories
   `CREATE TABLE character_memories (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     character_id UUID NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
     campaign_id UUID NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
     type VARCHAR(50) NOT NULL,
@@ -107,7 +109,7 @@ const MIGRATIONS = [
   
   // Character Relationships
   `CREATE TABLE character_relationships (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     character_id UUID NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
     target_id UUID NOT NULL,
     target_type VARCHAR(20) NOT NULL,
@@ -123,7 +125,7 @@ const MIGRATIONS = [
   
   // Locations (before NPCs due to foreign key)
   `CREATE TABLE locations (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     campaign_id UUID NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
     description TEXT,
@@ -167,7 +169,7 @@ const MIGRATIONS = [
   
   // NPCs
   `CREATE TABLE npcs (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     campaign_id UUID NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
     type VARCHAR(50) DEFAULT 'neutral',
@@ -200,7 +202,7 @@ const MIGRATIONS = [
   
   // NPC Memories
   `CREATE TABLE npc_memories (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     npc_id UUID NOT NULL REFERENCES npcs(id) ON DELETE CASCADE,
     campaign_id UUID NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
     involved_character_ids JSONB DEFAULT '[]',
@@ -217,7 +219,7 @@ const MIGRATIONS = [
   
   // Battle Maps
   `CREATE TABLE battle_maps (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     location_id UUID NOT NULL REFERENCES locations(id) ON DELETE CASCADE,
     campaign_id UUID NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
@@ -240,7 +242,7 @@ const MIGRATIONS = [
   
   // World Events
   `CREATE TABLE world_events (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     campaign_id UUID NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
     session_id UUID REFERENCES sessions(id),
     type VARCHAR(50) NOT NULL,
@@ -261,7 +263,7 @@ const MIGRATIONS = [
   
   // Quests
   `CREATE TABLE quests (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     campaign_id UUID NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
     description TEXT,
@@ -285,7 +287,7 @@ const MIGRATIONS = [
   
   // Items
   `CREATE TABLE items (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     campaign_id UUID NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
     type VARCHAR(50) NOT NULL,
@@ -307,7 +309,7 @@ const MIGRATIONS = [
   
   // Embeddings
   `CREATE TABLE embeddings (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     campaign_id UUID NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
     entity_type VARCHAR(50) NOT NULL,
     entity_id UUID NOT NULL,
@@ -320,7 +322,7 @@ const MIGRATIONS = [
   
   // Combat Logs
   `CREATE TABLE combat_logs (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     campaign_id UUID NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
     session_id UUID NOT NULL REFERENCES sessions(id),
     encounter_id UUID NOT NULL,
@@ -343,6 +345,60 @@ const MIGRATIONS = [
   `CREATE INDEX combat_logs_encounter_idx ON combat_logs(encounter_id);`,
 ];
 
+/**
+ * Create the schema if it does not exist yet. Never drops anything, so it is
+ * safe to call on every boot. `exec` runs one SQL statement.
+ */
+export async function runMigrations(
+  exec: (sql: string) => Promise<void>,
+  schemaExists: () => Promise<boolean>,
+): Promise<boolean> {
+  // Account tables are newer than the game schema, so they are checked on every boot.
+  for (const sql of ACCOUNT_STATEMENTS) {
+    await exec(sql);
+  }
+  if (await schemaExists()) return false;
+  for (const sql of CREATE_STATEMENTS) {
+    await exec(sql);
+  }
+  return true;
+}
+
+/** Player accounts, their login sessions and the characters they keep. */
+const ACCOUNT_STATEMENTS = [
+  `CREATE TABLE IF NOT EXISTS accounts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    display_name TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    last_login_at TIMESTAMPTZ
+  )`,
+  `CREATE TABLE IF NOT EXISTS account_sessions (
+    token_hash TEXT PRIMARY KEY,
+    account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    expires_at TIMESTAMPTZ NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS account_sessions_account_idx ON account_sessions(account_id)`,
+  `CREATE TABLE IF NOT EXISTS saved_characters (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    race TEXT NOT NULL,
+    class_name TEXT NOT NULL,
+    level INTEGER NOT NULL DEFAULT 1,
+    sheet JSONB NOT NULL,
+    last_adventure TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  )`,
+  `CREATE INDEX IF NOT EXISTS saved_characters_account_idx ON saved_characters(account_id)`,
+];
+
+const MIGRATIONS = [...DROP_STATEMENTS, ...CREATE_STATEMENTS];
+
+/** Destructive reset: drops every table and recreates the schema. CLI only. */
 async function migrate(): Promise<void> {
   const config = getDatabaseConfig();
   

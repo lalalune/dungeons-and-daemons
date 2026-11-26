@@ -1,13 +1,21 @@
 import clsx from "clsx";
+import { useEffect, useState } from "react";
+import { CharacterScreen, type CharacterTab } from "./CharacterScreen";
 import { useGameStore } from "../store/gameStore";
 
 export function CharacterPanel() {
-	const { character } = useGameStore();
+	const { character, conditionRules, loadConditionRules } = useGameStore();
+	useEffect(() => {
+		loadConditionRules();
+	}, [loadConditionRules]);
+	const [openTab, setOpenTab] = useState<CharacterTab | null>(null);
 
 	if (!character) {
 		return (
-			<div className="bg-slate-800/80 rounded-lg border border-slate-700 p-4">
-				<div className="text-center text-slate-500">No character loaded</div>
+			<div className="bg-slate-900/70 backdrop-blur-sm rounded-lg border border-slate-700 p-4">
+				<div className="text-center text-slate-500">
+					You are watching. Leave and rejoin to take an open seat.
+				</div>
 			</div>
 		);
 	}
@@ -15,7 +23,7 @@ export function CharacterPanel() {
 	const hpPercent = (character.hp.current / character.hp.max) * 100;
 
 	return (
-		<div className="bg-slate-800/80 rounded-lg border border-slate-700 overflow-hidden">
+		<div className="bg-slate-900/70 backdrop-blur-sm rounded-lg border border-slate-700 overflow-hidden">
 			{/* Header */}
 			<div className="bg-gradient-to-r from-slate-700 to-slate-800 px-4 py-3 border-b border-slate-600">
 				<h2 className="fantasy-heading text-xl text-gold-400">
@@ -69,6 +77,26 @@ export function CharacterPanel() {
 					<StatBox label="Level" value={character.level} />
 				</div>
 
+				<div className="grid grid-cols-2 gap-2">
+					<button
+						type="button"
+						onClick={() => setOpenTab("sheet")}
+						className="py-2 rounded-lg text-sm font-medium border border-amber-700/70 text-amber-200 bg-amber-900/20 hover:border-amber-500 transition-all"
+					>
+						📜 Sheet
+					</button>
+					<button
+						type="button"
+						onClick={() => setOpenTab("inventory")}
+						className="py-2 rounded-lg text-sm font-medium border border-amber-700/70 text-amber-200 bg-amber-900/20 hover:border-amber-500 transition-all"
+					>
+						🎒 Inventory
+					</button>
+				</div>
+				{openTab && (
+					<CharacterScreen initialTab={openTab} onClose={() => setOpenTab(null)} />
+				)}
+
 				{/* Spell Slots */}
 				{character.spellSlots &&
 					Object.keys(character.spellSlots).length > 0 && (
@@ -109,7 +137,8 @@ export function CharacterPanel() {
 							{character.conditions.map((condition) => (
 								<span
 									key={condition}
-									className="bg-yellow-900/50 text-yellow-300 text-xs px-2 py-1 rounded border border-yellow-700"
+									title={conditionRules[condition.toLowerCase()] ?? condition}
+									className="cursor-help bg-yellow-900/50 text-yellow-300 text-xs px-2 py-1 rounded border border-yellow-700"
 								>
 									{condition}
 								</span>

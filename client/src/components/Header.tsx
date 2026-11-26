@@ -1,4 +1,5 @@
-import { useGameStore } from "../store/gameStore";
+import { useState } from "react";
+import { inviteLink, useGameStore } from "../store/gameStore";
 
 export function Header() {
 	const {
@@ -8,8 +9,21 @@ export function Header() {
 		inCombat,
 		character,
 		campaignName,
-		disconnect,
+		roomCode,
+		leaveRoom,
 	} = useGameStore();
+	const [copied, setCopied] = useState(false);
+
+	async function copyInvite() {
+		if (!roomCode) return;
+		try {
+			await navigator.clipboard.writeText(inviteLink(roomCode));
+			setCopied(true);
+			setTimeout(() => setCopied(false), 2000);
+		} catch {
+			// Clipboard can be blocked; the code is shown in the header to read out.
+		}
+	}
 
 	const phaseLabels: Record<string, string> = {
 		initializing: "Starting...",
@@ -23,11 +37,11 @@ export function Header() {
 	};
 
 	return (
-		<header className="bg-slate-900/90 border-b border-slate-700 px-4 py-3">
+		<header className="bg-slate-950/70 backdrop-blur-sm border-b border-slate-700 px-4 py-3">
 			<div className="container mx-auto flex items-center justify-between">
 				<div className="flex items-center gap-4">
 					<h1 className="font-fantasy text-2xl text-gold-400">
-						D&D Virtual Tabletop
+						Dungeons &amp; Daemons
 					</h1>
 
 					{campaignName && (
@@ -49,6 +63,22 @@ export function Header() {
 				</div>
 
 				<div className="flex items-center gap-4">
+					{roomCode && (
+						<button
+							type="button"
+							onClick={copyInvite}
+							title="Copy a link your friends can use to join this table"
+							className="flex items-center gap-2 px-2 py-1 rounded border border-slate-600 text-sm text-slate-200 hover:border-amber-500"
+						>
+							<span className="font-mono tracking-widest text-amber-300">
+								{roomCode}
+							</span>
+							<span className="text-slate-400">
+								{copied ? "Copied" : "Invite"}
+							</span>
+						</button>
+					)}
+
 					{/* Game Phase */}
 					<div className="flex items-center gap-2">
 						<span
@@ -102,9 +132,9 @@ export function Header() {
 					{/* Leave button */}
 					<button
 						type="button"
-						onClick={disconnect}
+						onClick={leaveRoom}
 						className="text-xs text-slate-500 hover:text-slate-300 transition-colors px-2 py-1 rounded hover:bg-slate-800"
-						title="Leave campaign"
+						title="Leave this table and give up your seat"
 					>
 						Leave
 					</button>

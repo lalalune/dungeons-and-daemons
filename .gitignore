@@ -3,3 +3,8 @@ dist/
 .env
 .env.local
 *.log
+.remote/
+
+# Adventure briefs written from other publishers' adventures: private play only, never committed
+tools/adventure-briefs-private/
+server/src/content/adventures/library.local.ts

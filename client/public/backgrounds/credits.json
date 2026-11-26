@@ -1,0 +1,44 @@
+[
+  {
+    "file": "isle-of-the-dead.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Arnold_B%C3%B6cklin_-_Die_Toteninsel_III_(Alte_Nationalgalerie,_Berlin).jpg",
+    "license": "Public domain",
+    "size": "1600x852"
+  },
+  {
+    "file": "abbey-in-the-oakwood.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Caspar_David_Friedrich_-_Abtei_im_Eichwald_-_Google_Art_Project.jpg",
+    "license": "Public domain",
+    "size": "1600x1025"
+  },
+  {
+    "file": "destruction.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Cole_Thomas_The_Course_of_Empire_Destruction_1836.jpg",
+    "license": "Public domain",
+    "size": "1600x992"
+  },
+  {
+    "file": "manfred-on-the-jungfrau.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:John_Martin_-_Manfred_on_the_Jungfrau_(1837)_1.jpg",
+    "license": "Public domain",
+    "size": "1280x853"
+  },
+  {
+    "file": "pandemonium.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:John_Martin_Le_Pandemonium_Louvre.JPG",
+    "license": "Public domain",
+    "size": "1600x1056"
+  },
+  {
+    "file": "the-past.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Thomas_Cole_-_The_Past_-_1838.jpg",
+    "license": "Public domain",
+    "size": "1600x1026"
+  },
+  {
+    "file": "saint-george-and-the-dragon.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Uccello_-_Saint_Georges_terrassant_le_dragon,_1430-35.jpg",
+    "license": "Public domain",
+    "size": "1600x914"
+  }
+]
